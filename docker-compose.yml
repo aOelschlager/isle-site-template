@@ -11,7 +11,7 @@ x-dev: &dev
     secrets:
         - source: CERT_PUBLIC_KEY
         - source: CERT_PRIVATE_KEY
-        - source: CERT_AUTHORITY
+#        - source: CERT_AUTHORITY
         - source: UID
 
 # Will override what is in x-dev, x-common.
@@ -73,8 +73,8 @@ secrets:
         file: ./certs/cert.pem
     CERT_PRIVATE_KEY:
         file: ./certs/privkey.pem
-    CERT_AUTHORITY:
-        file: ./certs/rootCA.pem
+#    CERT_AUTHORITY:
+#        file: ./certs/rootCA.pem
     # UID is used to map the nginx user id number to that of the host to prevent
     # problems when bind mounting files from this repository into the container
     # for development purposes.
@@ -219,7 +219,7 @@ services:
             <<: [*traefik-enable, *traefik-https-redirect-middleware]
             traefik.http.routers.activemq_http.entrypoints: http
             traefik.http.routers.activemq_http.middlewares: *traefik-https-redirect
-            traefik.http.routers.activemq_http.rule: &traefik-host-activemq-dev Host(`activemq.islandora.dev`)
+            traefik.http.routers.activemq_http.rule: &traefik-host-activemq-dev Host(`activemq-${DOMAIN_DEV}`)
             traefik.http.routers.activemq_http.service: activemq
             traefik.http.routers.activemq_https.entrypoints: https
             traefik.http.routers.activemq_https.rule: *traefik-host-activemq-dev
@@ -249,7 +249,7 @@ services:
             <<: [*traefik-enable, *traefik-https-redirect-middleware]
             traefik.http.routers.blazegraph_http.entrypoints: http
             traefik.http.routers.blazegraph_http.middlewares: *traefik-https-redirect
-            traefik.http.routers.blazegraph_http.rule: &traefik-host-blazegraph-dev Host(`blazegraph.islandora.dev`)
+            traefik.http.routers.blazegraph_http.rule: &traefik-host-blazegraph-dev Host(`blazegraph-${DOMAIN_DEV}`)
             traefik.http.routers.blazegraph_http.service: blazegraph
             traefik.http.routers.blazegraph_https.entrypoints: https
             traefik.http.routers.blazegraph_https.rule: *traefik-host-blazegraph-dev
@@ -278,7 +278,7 @@ services:
             traefik.http.middlewares.cantaloupe.chain.middlewares: cantaloupe-strip-prefix,cantaloupe-custom-request-headers
             traefik.http.routers.cantaloupe_http.entrypoints: http
             traefik.http.routers.cantaloupe_http.middlewares: *traefik-https-redirect
-            traefik.http.routers.cantaloupe_http.rule: &traefik-host-cantaloupe-dev Host(`islandora.dev`) && PathPrefix(`/cantaloupe`)
+            traefik.http.routers.cantaloupe_http.rule: &traefik-host-cantaloupe-dev Host(`${DOMAIN_DEV}`) && PathPrefix(`/cantaloupe`)
             traefik.http.routers.cantaloupe_http.service: cantaloupe
             traefik.http.routers.cantaloupe_https.middlewares: cantaloupe
             traefik.http.routers.cantaloupe_https.entrypoints: https
@@ -316,17 +316,17 @@ services:
         environment: &drupal-environment
             DEVELOPMENT_ENVIRONMENT: true
             DRUPAL_DEFAULT_BROKER_URL: "tcp://activemq:61613"
-            DRUPAL_DEFAULT_CANTALOUPE_URL: "https://islandora.dev/cantaloupe/iiif/2"
+            DRUPAL_DEFAULT_CANTALOUPE_URL: "https://${DOMAIN_DEV}/cantaloupe/iiif/2"
             DRUPAL_DEFAULT_CONFIGDIR: "/var/www/drupal/config/sync"
             DRUPAL_DEFAULT_FCREPO_HOST: "fcrepo"
             DRUPAL_DEFAULT_FCREPO_PORT: 8080
-            DRUPAL_DEFAULT_FCREPO_URL: "https://fcrepo.islandora.dev/fcrepo/rest/"
+            DRUPAL_DEFAULT_FCREPO_URL: "https://fcrepo-${DOMAIN_DEV}/fcrepo/rest/"
             DRUPAL_DEFAULT_INSTALL_EXISTING_CONFIG: "true"
             DRUPAL_DEFAULT_NAME: "Islandora Digital Collections"
             DRUPAL_DEFAULT_PROFILE: "minimal"
-            DRUPAL_DEFAULT_SITE_URL: "islandora.dev"
+            DRUPAL_DEFAULT_SITE_URL: "${DOMAIN_DEV}"
             DRUPAL_DEFAULT_SOLR_CORE: "default"
-            DRUPAL_DRUSH_URI: "https://islandora.dev" # Used by docker/drupal/rootfs/usr/local/share/custom/install.sh
+            DRUPAL_DRUSH_URI: "https://${DOMAIN_DEV}" # Used by docker/drupal/rootfs/usr/local/share/custom/install.sh
         volumes:
             # Allow code-server to serve Drupal / override it.
             - &drupal-root
@@ -393,11 +393,11 @@ services:
             # All Drupal traefik is routed through the IDE so that XDebug can be
             # easily used.
             <<: [*traefik-enable, *traefik-https-redirect-middleware, *traefik-drupal-labels]
-            traefik.http.routers.drupal_http.rule: &traefik-host-drupal-dev Host(`islandora.dev`)
+            traefik.http.routers.drupal_http.rule: &traefik-host-drupal-dev Host(`${DOMAIN_DEV}`)
             traefik.http.routers.drupal_https.rule: *traefik-host-drupal-dev
             traefik.http.routers.ide_http.entrypoints: http
             traefik.http.routers.ide_http.middlewares: *traefik-https-redirect
-            traefik.http.routers.ide_http.rule: &traefik-host-ide-dev Host(`ide.islandora.dev`)
+            traefik.http.routers.ide_http.rule: &traefik-host-ide-dev Host(`ide-${DOMAIN_DEV}`)
             traefik.http.routers.ide_http.service: ide
             traefik.http.routers.ide_https.entrypoints: https
             traefik.http.routers.ide_https.rule: *traefik-host-ide-dev
@@ -476,7 +476,7 @@ services:
         image: ${ISLANDORA_REPOSITORY}/fcrepo6:${ISLANDORA_TAG}
         environment: &fcrepo-environment
             FCREPO_ALLOW_EXTERNAL_DEFAULT: "http://default/"
-            FCREPO_ALLOW_EXTERNAL_DRUPAL: "https://islandora.dev/"
+            FCREPO_ALLOW_EXTERNAL_DRUPAL: "https://${DOMAIN_DEV}/"
             FCREPO_PERSISTENCE_TYPE: "mysql"
             DB_HOST: mariadb
             DB_PORT: 3306
@@ -490,7 +490,7 @@ services:
             traefik.http.middlewares.fcrepo-strip-suffix.replacepathregex.replacement: "$$1"
             traefik.http.routers.fcrepo_http.entrypoints: http
             traefik.http.routers.fcrepo_http.middlewares: *traefik-https-redirect
-            traefik.http.routers.fcrepo_http.rule: &traefik-host-fcrepo-dev Host(`fcrepo.islandora.dev`)
+            traefik.http.routers.fcrepo_http.rule: &traefik-host-fcrepo-dev Host(`fcrepo-${DOMAIN_DEV}`)
             traefik.http.routers.fcrepo_http.service: fcrepo
             traefik.http.routers.fcrepo_https.entrypoints: https
             traefik.http.routers.fcrepo_https.middlewares: fcrepo-strip-suffix
@@ -531,7 +531,7 @@ services:
             <<: [*traefik-enable, *traefik-https-redirect-middleware]
             traefik.http.routers.solr_http.entrypoints: http
             traefik.http.routers.solr_http.middlewares: *traefik-https-redirect
-            traefik.http.routers.solr_http.rule: &traefik-host-solr Host(`solr.islandora.dev`)
+            traefik.http.routers.solr_http.rule: &traefik-host-solr Host(`solr-${DOMAIN_DEV}`)
             traefik.http.routers.solr_http.service: solr
             traefik.http.routers.solr_https.entrypoints: https
             traefik.http.routers.solr_https.rule: *traefik-host-solr
@@ -580,7 +580,7 @@ services:
             <<: [*traefik-enable, *traefik-https-redirect-middleware]
             traefik.http.routers.traefik_http.entrypoints: http
             traefik.http.routers.traefik_http.middlewares: *traefik-https-redirect
-            traefik.http.routers.traefik_http.rule: &traefik-host-traefik Host(`traefik.islandora.dev`)
+            traefik.http.routers.traefik_http.rule: &traefik-host-traefik Host(`traefik-${DOMAIN_DEV}`)
             traefik.http.routers.traefik_http.service: traefik
             traefik.http.routers.traefik_https.entrypoints: https
             traefik.http.routers.traefik_https.rule: *traefik-host-traefik
@@ -600,12 +600,12 @@ services:
             default:
                 aliases:
                     # Allow services to connect on the same name/port as the outside.
-                    - activemq.islandora.dev
-                    - blazegraph.islandora.dev
-                    - fcrepo.islandora.dev
-                    - ide.islandora.dev
-                    - islandora.dev # Drupal is at the root domain.
-                    - solr.islandora.dev
+                    - activemq-${DOMAIN_DEV}
+                    - blazegraph-${DOMAIN_DEV}
+                    - fcrepo-${DOMAIN_DEV}
+                    - ide-${DOMAIN_DEV}
+                    - ${DOMAIN_DEV} # Drupal is at the root domain.
+                    - solr-${DOMAIN_DEV}
         depends_on:
             # Sometimes traefik doesn't pick up on new containers so make sure
             # they are started before traefik.
