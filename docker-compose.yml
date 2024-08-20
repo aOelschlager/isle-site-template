@@ -17,7 +17,9 @@ x-dev: &dev
 # Will override what is in x-dev, x-common.
 x-prod: &prod
     profiles: [prod]
-    secrets: [] # Development certificates are only needed for development environments.
+    secrets: 
+        - source: CERT_PUBLIC_KEY
+        - source: CERT_PRIVATE_KEY
 
 x-traefik-enable: &traefik-enable
     traefik.enable: true
@@ -31,8 +33,6 @@ x-traefik-https-redirect-middleware: &traefik-https-redirect-middleware
     traefik.http.middlewares.https-redirect.redirectscheme.scheme: https
 
 x-traefik-https-redirect: &traefik-https-redirect https-redirect
-
-x-traefik-certresolver: &traefik-certresolver resolver
 
 x-traefik-drupal-labels: &traefik-drupal-labels
     traefik.http.routers.drupal_http.entrypoints: http
@@ -236,9 +236,8 @@ services:
         <<: [*prod, *activemq]
         labels:
             <<: [*traefik-disable, *activemq-labels]
-            traefik.http.routers.activemq_http.rule: &traefik-host-activemq-prod Host(`activemq.${DOMAIN}`)
+            traefik.http.routers.activemq_http.rule: &traefik-host-activemq-prod Host(`activemq-${DOMAIN}`)
             traefik.http.routers.activemq_https.rule: *traefik-host-activemq-prod
-            traefik.http.routers.activemq_https.tls.certresolver: *traefik-certresolver
         secrets:
             - source: ACTIVEMQ_PASSWORD
             - source: ACTIVEMQ_WEB_ADMIN_PASSWORD
@@ -265,9 +264,8 @@ services:
         <<: [*prod, *blazegraph]
         labels:
             <<: [*traefik-disable, *blazegraph-labels]
-            traefik.http.routers.blazegraph_http.rule: &traefik-host-blazegraph-prod Host(`blazegraph.${DOMAIN}`)
+            traefik.http.routers.blazegraph_http.rule: &traefik-host-blazegraph-prod Host(`blazegraph-${DOMAIN}`)
             traefik.http.routers.blazegraph_https.rule: *traefik-host-blazegraph-prod
-            traefik.http.routers.blazegraph_https.tls.certresolver: *traefik-certresolver
     cantaloupe-dev: &cantaloupe
         <<: [*dev, *common]
         image: ${ISLANDORA_REPOSITORY}/cantaloupe:${ISLANDORA_TAG}
@@ -297,7 +295,6 @@ services:
             <<: [*cantaloupe-labels]
             traefik.http.routers.cantaloupe_http.rule: &traefik-host-cantaloupe-prod Host(`${DOMAIN}`) && PathPrefix(`/cantaloupe`)
             traefik.http.routers.cantaloupe_https.rule: *traefik-host-cantaloupe-prod
-            traefik.http.routers.cantaloupe_https.tls.certresolver: *traefik-certresolver
     drupal-dev: &drupal
         <<: [*dev, *common]
         image: ${REPOSITORY}/${COMPOSE_PROJECT_NAME}:${TAG}
@@ -361,7 +358,7 @@ services:
             <<: [*drupal-environment]
             DEVELOPMENT_ENVIRONMENT: false
             DRUPAL_DEFAULT_CANTALOUPE_URL: "https://${DOMAIN}/cantaloupe/iiif/2"
-            DRUPAL_DEFAULT_FCREPO_URL: "https://fcrepo.${DOMAIN}/fcrepo/rest/"
+            DRUPAL_DEFAULT_FCREPO_URL: "https://fcrepo-${DOMAIN}/fcrepo/rest/"
             DRUPAL_DEFAULT_SITE_URL: "${DOMAIN}"
             DRUPAL_DRUSH_URI: "https://${DOMAIN}"
             NGINX_REAL_IP_RECURSIVE: ${REVERSE_PROXY}
@@ -372,7 +369,6 @@ services:
             <<: [*traefik-enable, *traefik-https-redirect-middleware, *traefik-drupal-labels]
             traefik.http.routers.drupal_http.rule: &traefik-host-drupal-prod Host(`${DOMAIN}`)
             traefik.http.routers.drupal_https.rule: *traefik-host-drupal-prod
-            traefik.http.routers.drupal_https.tls.certresolver: *traefik-certresolver
         volumes:
             # No bind mounts in production.
             # Changes to anything other than data is not persisted.
@@ -513,9 +509,8 @@ services:
             FCREPO_ALLOW_EXTERNAL_DRUPAL: "https://${DOMAIN}/"
         labels:
             <<: [*fcrepo-labels]
-            traefik.http.routers.fcrepo_http.rule: &traefik-host-fcrepo-prod Host(`fcrepo.${DOMAIN}`)
+            traefik.http.routers.fcrepo_http.rule: &traefik-host-fcrepo-prod Host(`fcrepo-${DOMAIN}`)
             traefik.http.routers.fcrepo_https.rule: *traefik-host-fcrepo-prod
-            traefik.http.routers.fcrepo_https.tls.certresolver: *traefik-certresolver
         secrets:
             - source: DB_ROOT_PASSWORD
             - source: FCREPO_DB_PASSWORD
@@ -556,9 +551,8 @@ services:
         <<: [*prod, *solr]
         labels:
             <<: [*traefik-disable, *solr-labels]
-            traefik.http.routers.solr_http.rule: &traefik-host-solr-prod Host(`solr.${DOMAIN}`)
+            traefik.http.routers.solr_http.rule: &traefik-host-solr-prod Host(`solr-${DOMAIN}`)
             traefik.http.routers.solr_https.rule: *traefik-host-solr-prod
-            traefik.http.routers.solr_https.tls.certresolver: *traefik-certresolver
         # Ensure drupal mounts the shared volumes first.
         depends_on:
             - drupal-prod
@@ -617,13 +611,6 @@ services:
             - ide
     traefik-prod:
         <<: [*prod, *traefik]
-        # Change caServer to use the staging server when testing changes to the Traefik.
-        #
-        # Staging: https://acme-staging-v02.api.letsencrypt.org/directory
-        # Production: https://acme-v02.api.letsencrypt.org/directory
-        #
-        # @See https://letsencrypt.org/docs/staging-environment/
-        # @See https://doc.traefik.io/traefik/https/acme/
         command: >-
             --api.insecure=false
             --api.dashboard=false
@@ -634,29 +621,24 @@ services:
             --entryPoints.https.forwardedHeaders.trustedIPs=${FRONTEND_IP_1},${FRONTEND_IP_2},${FRONTEND_IP_3}
             --entrypoints.https.http.tls.certResolver=resolver
             --providers.file.filename=/etc/traefik/tls.yml
-            --providers.docker
+            --providers.docker=true
             --providers.docker.network=default
             --providers.docker.exposedByDefault=false
-            --certificatesresolvers.resolver.acme.httpchallenge=true
-            --certificatesresolvers.resolver.acme.httpchallenge.entrypoint=http
-            --certificatesresolvers.resolver.acme.email=${EMAIL}
-            --certificatesresolvers.resolver.acme.storage=/acme/acme.json
-            --certificatesResolvers.resolver.acme.caServer=https://acme-v02.api.letsencrypt.org/directory
         labels:
             <<: [*traefik-disable] # Do no route to dashboard as it is disabled in production.
         volumes:
+            - ./certs:/etc/ssl/traefik:Z,ro
             - /var/run/docker.sock:/var/run/docker.sock:z,rw
-            - ./certs:/acme:Z
             - ./prod-tls.yml:/etc/traefik/tls.yml:Z,ro
         networks:
             default:
                 aliases:
                     # Allow services to connect on the same name/port as the outside.
                     - "${DOMAIN}" # Drupal is at the root domain.
-                    - "activemq.${DOMAIN}"
-                    - "blazegraph.${DOMAIN}"
-                    - "fcrepo.${DOMAIN}"
-                    - "solr.${DOMAIN}"
+                    - "activemq-${DOMAIN}"
+                    - "blazegraph-${DOMAIN}"
+                    - "fcrepo-${DOMAIN}"
+                    - "solr-${DOMAIN}"
         depends_on:
             # Sometimes traefik doesn't pick up on new containers so make sure
             # they are started before traefik.

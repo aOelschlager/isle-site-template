@@ -8,3 +8,11 @@ tls:
         - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
         - TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
         - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /etc/ssl/traefik/cert.pem
+        keyFile: /etc/ssl/traefik/privkey.pem
+  certificates:
+    certFile: /etc/ssl/traefik/cert.pem
+    keyFile: /etc/ssl/traefik/privkey.pem
